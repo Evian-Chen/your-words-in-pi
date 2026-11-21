@@ -3,7 +3,7 @@
 // (e.g. 中 U+4E2D = 20013 -> "20013", 'A' = 65 -> "00065", 😀 U+1F600 = 128512 -> "128512").
 // The binary form is 16 bits for BMP code points and 21 bits otherwise.
 
-export const MAX_UNITS = 60;
+export const MAX_UNITS = 30;
 
 export interface Unit {
   char: string;
