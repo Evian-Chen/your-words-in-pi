@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Starfield from "./Starfield";
 import Result from "./Result";
-import { locateText, type LocateResponse } from "./api";
+import { locateText, fetchCount, type LocateResponse } from "./api";
 import { fromBase64Url, toBase64Url, MAX_UNITS } from "../../shared/encode";
 
 const TITLE = "你知道圓周率涵蓋了你說過的所有言語嗎？";
@@ -12,12 +12,16 @@ export default function App() {
   const [data, setData] = useState<LocateResponse | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [count, setCount] = useState<number | null>(null);
+
+  useEffect(() => { fetchCount().then(setCount); }, []);
 
   const run = async (t: string, push: boolean) => {
     setBusy(true); setError(""); setWarp(true);
     try {
-      const [res] = await Promise.all([locateText(t), new Promise((r) => setTimeout(r, 900))]);
+      const [res] = await Promise.all([locateText(t, push), new Promise((r) => setTimeout(r, 900))]);
       if (!res.units.length) throw new Error("請輸入一句話");
+      if (res.count !== null) setCount(res.count);
       setData(res);
       if (push) history.pushState(null, "", `/r/${toBase64Url(t)}`);
     } catch (e) { setError((e as Error).message); }
@@ -52,6 +56,7 @@ export default function App() {
           {error && <p className="err" role="alert">{error}</p>}
         </main>
       )}
+      {count !== null && <footer className="visits">目前造訪人次 <b>{count.toLocaleString("en-US")}</b></footer>}
     </>
   );
 }

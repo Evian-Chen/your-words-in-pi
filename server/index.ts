@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { locate, type PiIndex } from "../shared/locate";
 import { fromBase64Url, normalizeText } from "../shared/encode";
+import { getCount, incrCount, counterMode } from "./counter";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const p = (...s: string[]) => path.join(root, ...s);
@@ -40,8 +41,15 @@ app.post("/api/locate", async (c) => {
   const text = typeof body?.text === "string" ? normalizeText(body.text) : "";
   if (!text) return c.json({ error: "empty" }, 400);
   if (text.length > 400) return c.json({ error: "too_long" }, 400);
-  return c.json({ digitsCount: index.digitsCount, ...locate(text, index) });
+  // Only a real press of the search button counts as a visit (not opening a shared link).
+  const count = body?.count === true ? await incrCount() : await getCount();
+  return c.json({ digitsCount: index.digitsCount, count, ...locate(text, index) });
 });
+
+app.get("/api/count", async (c) => c.json({ count: await getCount() }));
+
+// Health check for uptime pingers.
+app.on(["GET", "HEAD"], "/health", (c) => c.json({ ok: true }));
 
 // Share page: serve the SPA shell with OG meta for the encoded sentence.
 app.get("/r/:id", (c) => {
@@ -61,5 +69,6 @@ app.use("/*", serveStatic({ root: "./web/dist" }));
 const port = Number(process.env.PORT ?? 8787);
 if (process.env.VITEST === undefined) {
   serve({ fetch: app.fetch, port });
-  console.log(`server on http://localhost:${port} (pi digits: ${index.digitsCount})`);
+  console.log(`server on http://localhost:${port} (pi digits: ${index.digitsCount}, counter: ${counterMode})`);
+  if (counterMode === "file") console.warn("UPSTASH_REDIS_REST_URL/TOKEN not set: visit count is stored in a local file and resets on redeploy.");
 }
